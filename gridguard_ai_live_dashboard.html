@@ -1,0 +1,333 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans)}
+.db{padding:12px;display:flex;flex-direction:column;gap:10px}
+.row{display:flex;gap:10px}
+.card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:12px}
+.card-title{font-size:11px;font-weight:500;color:var(--color-text-secondary);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px}
+.metric-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.metric{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:10px 8px;text-align:center}
+.metric-label{font-size:11px;color:var(--color-text-secondary);margin-bottom:3px}
+.metric-value{font-size:22px;font-weight:500}
+.metric-target{font-size:10px;margin-top:2px}
+.node-row{display:flex;gap:6px;margin-top:4px}
+.node{flex:1;border-radius:var(--border-radius-md);padding:8px 6px;text-align:center;border:1px solid transparent}
+.node-name{font-size:10px;font-weight:500;margin-bottom:2px}
+.node-kw{font-size:15px;font-weight:500}
+.node-label{font-size:10px;margin-top:1px}
+.chart-area{height:90px;display:flex;align-items:flex-end;gap:2px;padding:4px 0}
+.bar-wrap{flex:1;display:flex;flex-direction:column;align-items:center;gap:2px}
+.bar{width:100%;border-radius:2px 2px 0 0;transition:height .4s ease}
+.bar-lbl{font-size:9px;color:var(--color-text-secondary)}
+.alert-box{border-radius:var(--border-radius-md);padding:8px 10px;font-size:12px;display:flex;align-items:flex-start;gap:8px}
+.alert-dot{width:8px;height:8px;border-radius:50%;margin-top:3px;flex-shrink:0}
+.llm-box{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:10px;font-size:12px;line-height:1.6;min-height:80px;color:var(--color-text-primary)}
+.llm-label{font-size:10px;font-weight:500;margin-bottom:5px}
+.scenario-btns{display:flex;gap:6px;flex-wrap:wrap}
+.sbtn{flex:1;min-width:0;padding:8px 6px;border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-md);background:var(--color-background-primary);cursor:pointer;font-size:11px;font-weight:500;color:var(--color-text-primary);transition:all .2s;text-align:center}
+.sbtn:hover{background:var(--color-background-secondary)}
+.sbtn.active{border:1.5px solid #0D9488;color:#0D9488;background:var(--color-background-secondary)}
+.recovery-curve{height:60px;width:100%}
+.tag{display:inline-block;padding:2px 7px;border-radius:10px;font-size:10px;font-weight:500}
+.tag-g{background:#d1fae5;color:#065f46}
+.tag-r{background:#fee2e2;color:#991b1b}
+.tag-y{background:#fef3c7;color:#92400e}
+.tag-b{background:#dbeafe;color:#1e40af}
+.typing::after{content:"▌";animation:blink .7s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+.pulse{animation:pulse 1.5s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.ai-row{display:flex;gap:6px;align-items:flex-start}
+.ai-icon{width:24px;height:24px;border-radius:50%;background:#0D9488;display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff;flex-shrink:0;margin-top:2px}
+</style>
+
+<div class="db">
+  <div style="display:flex;align-items:center;justify-content:space-between">
+    <div>
+      <div style="font-size:18px;font-weight:500;color:var(--color-text-primary)">GridGuard AI</div>
+      <div style="font-size:12px;color:var(--color-text-secondary)">Ontario Micro Energy Grid — Live Simulation</div>
+    </div>
+    <div id="status-tag" class="tag tag-g">● Normal Operation</div>
+  </div>
+
+  <div class="scenario-btns">
+    <button class="sbtn active" onclick="setScenario('normal')" id="btn-normal">Baseline (No Event)</button>
+    <button class="sbtn" onclick="setScenario('ice')" id="btn-ice">❄ S1: Ice Storm</button>
+    <button class="sbtn" onclick="setScenario('fault')" id="btn-fault">⚙ S2: Equipment Fault</button>
+    <button class="sbtn" onclick="setScenario('ev')" id="btn-ev">⚡ S3: EV Surge</button>
+  </div>
+
+  <div class="metric-grid">
+    <div class="metric">
+      <div class="metric-label">RTI — Recovery Time</div>
+      <div class="metric-value" id="m-rti" style="color:#0D9488">—</div>
+      <div class="metric-target" style="color:var(--color-text-secondary)">target &lt; 0.5h</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">ECI — Energy Continuity</div>
+      <div class="metric-value" id="m-eci" style="color:#0D9488">0.99</div>
+      <div class="metric-target" style="color:var(--color-text-secondary)">target &gt; 0.85</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">LSR — Load Satisfied</div>
+      <div class="metric-value" id="m-lsr" style="color:#0D9488">99.8%</div>
+      <div class="metric-target" style="color:var(--color-text-secondary)">target &gt; 90%</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">VSM — Voltage Margin</div>
+      <div class="metric-value" id="m-vsm" style="color:#0D9488">0.97</div>
+      <div class="metric-target" style="color:var(--color-text-secondary)">target &gt; 0.92</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Grid Nodes — Real-time Output</div>
+    <div class="node-row" id="nodes">
+      <div class="node" style="border-color:#22C55E;background:#f0fdf4">
+        <div class="node-name" style="color:#166534">⚛ SMR</div>
+        <div class="node-kw" id="n-smr" style="color:#166534">500 kW</div>
+        <div class="node-label" style="color:#16a34a">Baseload</div>
+      </div>
+      <div class="node" style="border-color:#F59E0B;background:#fffbeb">
+        <div class="node-name" style="color:#92400e">☀ Solar</div>
+        <div class="node-kw" id="n-solar" style="color:#92400e">218 kW</div>
+        <div class="node-label" style="color:#b45309">PV Array</div>
+      </div>
+      <div class="node" style="border-color:#60a5fa;background:#eff6ff">
+        <div class="node-name" style="color:#1e40af">💨 Wind</div>
+        <div class="node-kw" id="n-wind" style="color:#1e40af">134 kW</div>
+        <div class="node-label" style="color:#2563eb">Turbine</div>
+      </div>
+      <div class="node" style="border-color:#8b5cf6;background:#f5f3ff">
+        <div class="node-name" style="color:#4c1d95">🔋 BESS</div>
+        <div class="node-kw" id="n-bess" style="color:#4c1d95">78% SOC</div>
+        <div class="node-label" style="color:#6d28d9">Charging</div>
+      </div>
+      <div class="node" style="border-color:#6b7280;background:#f9fafb">
+        <div class="node-name" style="color:#374151">🏙 Load</div>
+        <div class="node-kw" id="n-load" style="color:#374151">847 kW</div>
+        <div class="node-label" style="color:#6b7280">Demand</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="card" style="flex:1">
+      <div class="card-title">Generation Mix (kW)</div>
+      <div class="chart-area" id="gen-chart"></div>
+    </div>
+    <div class="card" style="flex:1">
+      <div class="card-title">Resilience Recovery Curve</div>
+      <canvas class="recovery-curve" id="rcurve"></canvas>
+    </div>
+  </div>
+
+  <div class="card" id="alert-area" style="display:none">
+    <div class="card-title pulse" style="color:#dc2626">⚠ LSTM Anomaly Alert</div>
+    <div class="alert-box" id="alert-content" style="background:#fef2f2;border:1px solid #fca5a5"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">AI Insight Panel — LLM Semantic Engine</div>
+    <div class="ai-row">
+      <div class="ai-icon">AI</div>
+      <div style="flex:1">
+        <div class="llm-label" style="color:var(--color-text-secondary)">Claude (claude-sonnet) · GridGuard energy domain prompt</div>
+        <div class="llm-box" id="llm-output">Select a scenario above to activate the AI analysis engine. In a live deployment, this panel updates every 15 minutes with real grid state data.</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px" id="comparison" style="display:none">
+  </div>
+</div>
+
+<script>
+const SCENARIOS = {
+  normal: {
+    tag:['tag-g','● Normal Operation'],
+    smr:'500 kW', solar:'218 kW', wind:'134 kW', bess:'78% SOC', load:'847 kW',
+    eci:'0.99', lsr:'99.8%', vsm:'0.97', rti:'—',
+    eciColor:'#0D9488', lsrColor:'#0D9488', vsmColor:'#0D9488', rtiColor:'var(--color-text-secondary)',
+    eciBase:'0.61', lsrBase:'72.4%', vsmBase:'0.88', rtiBase:'3.8h',
+    bars:[500,218,134,0],
+    alert:false,
+    curve:[1,1,1,1,1,1,1,1,1,1,1,1],
+    llm:'System operating normally. All generation assets within parameters. Battery SOC at 78% — adequate for 4-hour evening backup. No anomalies detected. Next recommended action: pre-charge BESS to 85% ahead of projected evening demand peak at 18:00.'
+  },
+  ice: {
+    tag:['tag-r','● DISRUPTION — Ice Storm'],
+    smr:'500 kW', solar:'12 kW', wind:'0 kW', bess:'85% SOC', load:'1185 kW',
+    eci:'0.91', lsr:'94.7%', vsm:'0.95', rti:'1.1h',
+    eciColor:'#0D9488', lsrColor:'#0D9488', vsmColor:'#0D9488', rtiColor:'#0D9488',
+    eciBase:'0.61', lsrBase:'72.4%', vsmBase:'0.88', rtiBase:'3.8h',
+    bars:[500,12,0,100],
+    alert:true,
+    alertText:'Ice accumulation detected on PV arrays — solar output reduced 94%. Wind speed 22.4 m/s exceeds cutoff — turbine offline. Heating demand surge +40%. LSTM confidence: 97.2%',
+    curve:[1,1,0.72,0.65,0.71,0.80,0.88,0.94,0.97,0.99,1,1],
+    llm:'ROOT CAUSE: Severe winter storm event. Simultaneous photovoltaic suppression (ice accumulation, output -94%) and wind curtailment (22.4 m/s → automatic turbine shutdown) combined with cold-weather heating demand surge (+40%).\n\nAI ACTIONS TAKEN:\n→ BESS pre-charged to 85% SOC before storm peak\n→ Critical load priority tier activated (hospitals, heating, emergency services)\n→ SMR dispatched at 100% rated output\n→ Non-critical commercial loads deferred\n\nRECOMMENDED OPERATOR ACTION: Confirm demand response signal sent to industrial customers. Estimated solar recovery in 4.2 hours as temperature rises above 0°C. No grid islanding required at this time.\n\nRISK: If storm duration exceeds 6 hours, BESS SOC will fall below 30% threshold. Monitor closely.'
+  },
+  fault: {
+    tag:['tag-y','● DISRUPTION — Equipment Fault'],
+    smr:'350 kW', solar:'198 kW', wind:'122 kW', bess:'OFFLINE', load:'847 kW',
+    eci:'0.88', lsr:'93.2%', vsm:'0.94', rti:'1.9h',
+    eciColor:'#0D9488', lsrColor:'#0D9488', vsmColor:'#0D9488', rtiColor:'#d97706',
+    eciBase:'0.73', lsrBase:'81.1%', vsmBase:'0.91', rtiBase:'4.2h',
+    bars:[350,198,122,0],
+    alert:true,
+    alertText:'BESS inverter fault — storage offline. SMR derated to 70% (scheduled maintenance window). Total available generation: 670 kW vs demand: 847 kW. Deficit: 177 kW. LSTM confidence: 99.1%',
+    curve:[1,1,0.81,0.78,0.82,0.87,0.91,0.94,0.97,0.99,1,1],
+    llm:'ROOT CAUSE: Dual constraint event. BESS inverter fault (fault code INV-E07) has removed 200 kWh storage capacity entirely. Concurrent SMR maintenance derate to 70% (350 kW) creates a generation deficit of 177 kW against current demand.\n\nAI ACTIONS TAKEN:\n→ Tier-2 load shedding activated for non-critical commercial loads (estimated 180 kW reduction)\n→ Solar and wind inverters pushed to 100% capacity headroom\n→ SMR maintenance coordinator notified to assess early ramp-back\n→ BESS bypass relay engaged — awaiting inverter replacement\n\nRECOMMENDED OPERATOR ACTION: Dispatch maintenance crew to BESS inverter cabinet (Building C, Grid Room 2). Estimated repair window: 90 minutes. RTI projected at 1.9h with GridGuard actions vs 4.2h without.\n\nRISK: If SMR maintenance overruns, consider emergency islanding of critical load bus.'
+  },
+  ev: {
+    tag:['tag-b','● PREDICTIVE INTERCEPT — EV Surge'],
+    smr:'500 kW', solar:'45 kW', wind:'38 kW', bess:'95% SOC', load:'1356 kW',
+    eci:'0.97', lsr:'99.2%', vsm:'0.97', rti:'—',
+    eciColor:'#0D9488', lsrColor:'#0D9488', vsmColor:'#0D9488', rtiColor:'var(--color-text-secondary)',
+    eciBase:'0.79', lsrBase:'87.4%', vsmBase:'0.90', rtiBase:'—',
+    bars:[500,45,38,95],
+    alert:false,
+    curve:[1,1,1,0.97,0.98,0.99,0.99,1,1,1,1,1],
+    llm:'PREDICTIVE INTERCEPT — 32 MINUTES BEFORE VOLTAGE VIOLATION\n\nLSTM detected coordinated EV fleet charging signature 2 timesteps early. Pattern matched to fleet depot charge schedule + low evening wind (38 kW). Projected demand spike: +509 kW (60% above baseline).\n\nPREVENTIVE ACTIONS TAKEN:\n→ BESS pre-charged from 71% to 95% SOC (30 min pre-event)\n→ Dynamic pricing signal issued to fleet operators: 10-minute staggered charging intervals\n→ SMR held at 100% dispatch\n→ Demand response notification sent to top-5 commercial consumers\n\nRESULT: Zero load shedding events. LSR: 99.2%. No voltage violations recorded.\n\nBASELINE COMPARISON: Without GridGuard AI, this event would have caused 3 load-shedding events and LSR of 87.4%. The 32-minute early warning window is the critical advantage.\n\nThis is the power of predictive resilience.'
+  }
+};
+
+let currentScenario = 'normal';
+let animTimer = null;
+
+function setScenario(key){
+  currentScenario = key;
+  document.querySelectorAll('.sbtn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('btn-'+key).classList.add('active');
+  const s = SCENARIOS[key];
+
+  const stEl = document.getElementById('status-tag');
+  stEl.className = 'tag ' + s.tag[0];
+  stEl.textContent = s.tag[1];
+
+  document.getElementById('n-smr').textContent = s.smr;
+  document.getElementById('n-solar').textContent = s.solar;
+  document.getElementById('n-wind').textContent = s.wind;
+  document.getElementById('n-bess').textContent = s.bess;
+  document.getElementById('n-load').textContent = s.load;
+
+  ['rti','eci','lsr','vsm'].forEach(m=>{
+    const el = document.getElementById('m-'+m);
+    el.textContent = s[m];
+    el.style.color = s[m+'Color'];
+  });
+
+  renderBars(s.bars);
+  renderCurve(s.curve);
+
+  const alertArea = document.getElementById('alert-area');
+  if(s.alert){
+    alertArea.style.display = 'block';
+    const ac = document.getElementById('alert-content');
+    ac.innerHTML = '<div class="alert-dot pulse" style="background:#dc2626"></div><span style="color:#991b1b">'+s.alertText+'</span>';
+  } else {
+    alertArea.style.display = 'none';
+  }
+
+  typeText(s.llm);
+  renderComparison(s);
+}
+
+function typeText(text){
+  const el = document.getElementById('llm-output');
+  el.className = 'llm-box typing';
+  el.textContent = '';
+  if(animTimer) clearInterval(animTimer);
+  let i = 0;
+  animTimer = setInterval(()=>{
+    if(i < text.length){
+      el.textContent += text[i++];
+      el.scrollTop = el.scrollHeight;
+    } else {
+      el.className = 'llm-box';
+      clearInterval(animTimer);
+    }
+  }, 12);
+}
+
+function renderBars(vals){
+  const labels = ['SMR','Solar','Wind','BESS'];
+  const colors = ['#22C55E','#F59E0B','#60a5fa','#8b5cf6'];
+  const max = 550;
+  const area = document.getElementById('gen-chart');
+  area.innerHTML = '';
+  vals.forEach((v,i)=>{
+    const h = Math.max(4, Math.round((v/max)*80));
+    const wrap = document.createElement('div');
+    wrap.className = 'bar-wrap';
+    const val = document.createElement('div');
+    val.style.cssText = 'font-size:9px;color:var(--color-text-secondary);margin-bottom:2px';
+    val.textContent = v > 0 ? v+'kW' : '—';
+    const bar = document.createElement('div');
+    bar.className = 'bar';
+    bar.style.cssText = `height:${h}px;background:${colors[i]}`;
+    const lbl = document.createElement('div');
+    lbl.className = 'bar-lbl';
+    lbl.textContent = labels[i];
+    wrap.append(val, bar, lbl);
+    area.appendChild(wrap);
+  });
+}
+
+function renderCurve(pts){
+  const canvas = document.getElementById('rcurve');
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth * 2;
+  canvas.height = 120;
+  ctx.scale(2, 1);
+  const W = canvas.offsetWidth, H = 60;
+  ctx.clearRect(0,0,W,H);
+  ctx.strokeStyle = '#0D9488';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  pts.forEach((p,i)=>{
+    const x = (i/(pts.length-1))*W;
+    const y = H - p*H + 4;
+    i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+  ctx.fillStyle = 'rgba(13,148,136,0.1)';
+  ctx.lineTo(W,H);
+  ctx.lineTo(0,H);
+  ctx.fill();
+  ctx.fillStyle = 'var(--color-text-secondary)';
+  ctx.font = '9px sans-serif';
+  ctx.fillText('Performance',2,12);
+  ctx.fillText('Time →',W-40,H-2);
+}
+
+function renderComparison(s){
+  const c = document.getElementById('comparison');
+  if(!s.eciBase){ c.style.display='none'; return; }
+  c.style.display = 'grid';
+  c.innerHTML = `
+    <div class="card">
+      <div class="card-title">Without GridGuard AI (Baseline)</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px">
+        <div class="metric"><div class="metric-label">ECI</div><div class="metric-value" style="color:#dc2626;font-size:18px">${s.eciBase}</div></div>
+        <div class="metric"><div class="metric-label">LSR</div><div class="metric-value" style="color:#dc2626;font-size:18px">${s.lsrBase}</div></div>
+        <div class="metric"><div class="metric-label">VSM</div><div class="metric-value" style="color:#d97706;font-size:18px">${s.vsmBase}</div></div>
+        <div class="metric"><div class="metric-label">RTI</div><div class="metric-value" style="color:#dc2626;font-size:18px">${s.rtiBase}</div></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title" style="color:#0D9488">With GridGuard AI ✓</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px">
+        <div class="metric"><div class="metric-label">ECI</div><div class="metric-value" style="color:#0D9488;font-size:18px">${s.eci}</div></div>
+        <div class="metric"><div class="metric-label">LSR</div><div class="metric-value" style="color:#0D9488;font-size:18px">${s.lsr}</div></div>
+        <div class="metric"><div class="metric-label">VSM</div><div class="metric-value" style="color:#0D9488;font-size:18px">${s.vsm}</div></div>
+        <div class="metric"><div class="metric-label">RTI</div><div class="metric-value" style="color:#0D9488;font-size:18px">${s.rti}</div></div>
+      </div>
+    </div>`;
+}
+
+renderBars(SCENARIOS.normal.bars);
+renderCurve(SCENARIOS.normal.curve);
+renderComparison(SCENARIOS.normal);
+</script>
